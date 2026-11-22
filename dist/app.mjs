@@ -54,16 +54,12 @@ function updateActions() {
   $('speed').disabled = locked || Boolean(demo);
   $('mode').disabled = locked || Boolean(demo);
   $('import').disabled = locked || importing;
-  $('mic-button').disabled = locked;
   $('listen').disabled = locked;
   $('hear-note').disabled = locked || Boolean(demo) || phase === 'complete';
   micLevel.hidden = !input;
   $('start').disabled = opening;
   for (const button of $('songs').querySelectorAll('button')) button.disabled = locked;
-  const micLabel = opening ? 'Activando…' : input ? 'Micrófono activo' : 'Activar micrófono';
-  $('mic-label').textContent = micLabel;
-  $('mic-button').setAttribute('aria-pressed', String(Boolean(input)));
-  const button = active() ? ['Detener', stopPath] : phase === 'failed' || phase === 'complete'
+  const button = opening ? ['Activando…', playPath] : active() ? ['Detener', stopPath] : phase === 'failed' || phase === 'complete'
     ? ['Reiniciar', restartPath] : ['Empezar', playPath];
   $('start-label').textContent = button[0];
   $('start-icon').setAttribute('d', button[1]);
@@ -111,6 +107,7 @@ function showNote(index, label) {
 }
 
 function reset(hint = '') {
+  disconnectMic();
   phase = 'idle';
   $('practice').dataset.phase = phase;
   target.dataset.cue = 'false';
@@ -172,7 +169,6 @@ function disconnectMic() {
   old.source.disconnect();
   old.filter.disconnect();
   old.stream.getTracks().forEach((track) => track.stop());
-  updateActions();
 }
 
 async function connectMic() {
@@ -212,13 +208,12 @@ async function connectMic() {
         phase = 'failed';
         $('practice').dataset.phase = phase;
         target.dataset.cue = 'false';
-        feedback('Micrófono desconectado', 'Actívalo y pulsa Reiniciar.');
+        feedback('Micrófono desconectado', 'Pulsa Reiniciar.');
         updateActions();
-      } else if (phase !== 'failed') feedback('Micrófono desconectado', 'Vuelve a activarlo.');
+      }
     });
     noise = .0015;
     attacks.reset();
-    scheduleFrame();
     return true;
   } catch (error) {
     stream?.getTracks().forEach((track) => track.stop());
@@ -260,6 +255,7 @@ function scheduleFrame() {
 }
 
 function fail() {
+  disconnectMic();
   phase = 'failed';
   $('practice').dataset.phase = phase;
   target.dataset.cue = 'false';
@@ -282,6 +278,7 @@ function showPlaying(now) {
     return;
   }
   if (attempt.status === 'complete') {
+    disconnectMic();
     phase = 'complete';
     $('practice').dataset.phase = phase;
     target.dataset.cue = 'false';
@@ -345,7 +342,7 @@ function frame(now) {
       showNote(index, 'ESCUCHA');
     }
   }
-  if (input || active() || demo?.visual) scheduleFrame();
+  if (active() || demo?.visual) scheduleFrame();
 }
 
 async function begin() {
@@ -524,14 +521,6 @@ async function importTab(file) {
   }
 }
 
-$('mic-button').addEventListener('click', async () => {
-  if (input) {
-    disconnectMic();
-    if (phase === 'idle') feedback('', '');
-  } else if (await connectMic() && phase === 'idle') {
-    feedback('', '');
-  }
-});
 $('start').addEventListener('click', begin);
 $('listen').addEventListener('click', listen);
 $('hear-note').addEventListener('click', hearNote);
@@ -548,6 +537,7 @@ $('track-dialog').addEventListener('close', () => {
 });
 document.addEventListener('visibilitychange', () => {
   if (document.hidden && active()) {
+    disconnectMic();
     phase = 'failed';
     $('practice').dataset.phase = phase;
     target.dataset.cue = 'false';

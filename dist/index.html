@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f2f4ee">
+  <meta name="theme-color" content="#ffffff">
   <meta name="description" content="Practica guitarra eléctrica, nota a nota, con el micrófono de tu Mac.">
   <title>Pulso · Práctica de guitarra</title>
   <link rel="icon" href="./pulso.svg" type="image/svg+xml">
@@ -11,23 +11,12 @@
   <script type="module" src="./app.mjs"></script>
 </head>
 <body>
-  <header class="topbar wrap">
-    <h1 class="brand">
-      <span class="brand-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M2 12h4l3-6 4 12 3-6h6"/></svg></span>
-      <span>Pulso<span class="brand-period">.</span></span>
-    </h1>
-    <button id="mic-button" class="button button-quiet mic-button" type="button" aria-pressed="false">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11v1a7 7 0 0 0 14 0v-1M12 19v3"/></svg>
-      <span id="mic-label">Activar micrófono</span>
-      <span id="mic-level" class="mic-level" aria-hidden="true" hidden><i></i><i></i><i></i><i></i></span>
-    </button>
-  </header>
-  <main class="wrap">
+  <main>
     <div class="dashboard">
       <section class="practice" id="practice" data-phase="idle" aria-label="Práctica">
         <header class="practice-header">
           <div>
-            <h2 id="song-title">Feliz cumpleaños</h2>
+            <h1 id="song-title">Feliz cumpleaños</h1>
             <p id="song-meta" class="song-meta" hidden></p>
           </div>
           <button id="listen" class="button button-quiet listen-button" type="button">
@@ -54,6 +43,7 @@
           <button class="button button-primary" id="start" type="button">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path id="start-icon" d="M8 5l11 7-11 7z"/></svg>
             <span id="start-label">Empezar</span>
+            <span id="mic-level" class="mic-level" aria-hidden="true" hidden><i></i><i></i><i></i><i></i></span>
           </button>
         </div>
         <div class="target">
