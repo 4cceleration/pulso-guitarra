@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b0d0c">
+  <meta name="description" content="Practica guitarra eléctrica, nota a nota, con el micrófono de tu Mac.">
+  <title>Pulso · Práctica de guitarra</title>
+  <link rel="icon" href="./pulso.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./style.css">
+  <script type="module" src="./app.mjs"></script>
+</head>
+<body>
+  <header class="topbar wrap">
+    <div class="brand">
+      <span class="brand-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M2 12h4l3-6 4 12 3-6h6"/></svg></span>
+      <span>Pulso<span class="brand-period">.</span></span>
+    </div>
+    <button id="mic-button" class="button button-quiet mic-button" type="button" aria-pressed="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11v1a7 7 0 0 0 14 0v-1M12 19v3"/></svg>
+      <span id="mic-label">Activar micrófono</span>
+    </button>
+  </header>
+  <main class="wrap">
+    <div class="heading">
+      <h1>Practica guitarra<span>.</span></h1>
+      <p>Una nota a la vez.</p>
+    </div>
+    <div class="dashboard">
+      <section class="practice panel" id="practice" data-phase="idle" aria-label="Práctica">
+        <header class="practice-header">
+          <div>
+            <p class="overline">EN PRÁCTICA</p>
+            <h2 id="song-title">Feliz cumpleaños</h2>
+            <p id="song-meta" class="song-meta">Tradicional</p>
+          </div>
+          <button id="listen" class="button button-quiet listen-button" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h4l5 4V6l-5 4H4ZM16 9a4 4 0 0 1 0 6m2-8a7 7 0 0 1 0 10"/></svg>
+            <span>Escuchar</span>
+          </button>
+        </header>
+        <div class="target">
+          <div class="wave wave-left" aria-hidden="true"></div>
+          <div class="wave wave-right" aria-hidden="true"></div>
+          <div class="target-text">
+            <p class="overline target-label" id="target-label">PRIMERA NOTA</p>
+            <div class="note" id="target-note">Sol<small>3</small></div>
+            <p class="fingering" id="fingering">3.ª cuerda <span>·</span> traste 0</p>
+          </div>
+        </div>
+        <div class="feedback" role="status" aria-atomic="true">
+          <strong id="feedback-title"></strong>
+          <span id="feedback-detail">Pon tu ampli en limpio y cerca del Mac.</span>
+        </div>
+        <div class="progress-area">
+          <div class="progress-label">
+            <span id="note-count">0 / 25 notas</span>
+            <span id="tempo-text">63 BPM</span>
+          </div>
+          <div class="progress-bar" role="progressbar" aria-label="Notas acertadas" aria-valuemin="0" aria-valuemax="25" aria-valuenow="0"><div id="progress-fill"></div></div>
+        </div>
+        <div class="controls">
+          <label class="select-label">
+            <span>Velocidad</span>
+            <span class="select-wrap"><select id="speed"><option value="0.25">25 %</option><option value="0.5">50 %</option><option value="0.75" selected>75 %</option><option value="1">100 %</option><option value="1.25">125 %</option></select></span>
+          </label>
+          <label class="select-label">
+            <span>Modo</span>
+            <span class="select-wrap"><select id="mode"><option value="timed">Con pulso</option><option value="free">A tu ritmo</option></select></span>
+          </label>
+          <button class="button button-primary" id="start" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path id="start-icon" d="M8 5l11 7-11 7z"/></svg>
+            <span id="start-label">Empezar</span>
+          </button>
+        </div>
+      </section>
+      <aside class="library panel" aria-labelledby="library-title">
+        <div class="library-header"><h2 id="library-title">Canciones</h2></div>
+        <div id="songs" class="songs"></div>
+        <div class="import-area">
+          <button id="import" class="button button-quiet import-button" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m-4 4 4-4 4 4M4 15v5h16v-5"/></svg>
+            Importar tablatura
+          </button>
+          <input id="file" type="file" accept=".gp,.gp3,.gp4,.gp5,.gpx,.musicxml,.xml,.mxl" hidden>
+          <p class="import-formats">Guitar Pro · MusicXML</p>
+          <details class="sources">
+            <summary>Riffs de rock para descargar</summary>
+            <a class="source-link" href="https://www.guitar-pro.com/blog/p/13037-free-tabs-20-legendary-riffs-to-download" target="_blank" rel="noopener noreferrer">AC/DC y Metallica</a>
+            <a class="source-link" href="https://www.guitar-pro.com/blog/p/22230-free-tablatures-top-10-guns-n-roses-riffs" target="_blank" rel="noopener noreferrer">Guns N’ Roses</a>
+            <p class="import-formats">Abre el ZIP e importa el archivo Guitar Pro.</p>
+          </details>
+          <p id="import-message" class="import-message" role="status"></p>
+        </div>
+      </aside>
+    </div>
+    <footer>El audio se analiza en tu Mac.</footer>
+  </main>
+  <dialog id="track-dialog" aria-labelledby="track-title">
+    <form method="dialog">
+      <h2 id="track-title">Elige una pista</h2>
+      <p id="track-description">La práctica usa una nota por vez.</p>
+      <label class="select-label">
+        <span>Pista</span>
+        <span class="select-wrap"><select id="track-select"></select></span>
+      </label>
+      <div class="dialog-actions">
+        <button class="button button-quiet" value="cancel">Cancelar</button>
+        <button id="track-confirm" class="button button-primary" value="import">Importar</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>
