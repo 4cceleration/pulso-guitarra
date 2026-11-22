@@ -3,7 +3,7 @@ const HEIGHT = 270;
 const CENTER = 180;
 const LEFT = 15;
 const LENGTH_SCALE = 1.78;
-const CROSS_SCALE = .74;
+const CROSS_SCALE = 1.18;
 const NUT = 55;
 const END = 320;
 const BRIDGE = 394;
@@ -134,8 +134,8 @@ export function renderFretboard(board, note, strings = 6) {
     const x = stringX(string, strings, NUT);
     const selected = string === activeString;
     const weight = .75 + (string - 1) / (strings - 1) * 1;
-    if (selected) line(ctx, x, 43, stringX(string, strings, END), END, '#ffffff28', 5);
-    line(ctx, x, 48, stringX(string, strings, END), END, selected ? '#fafafa' : '#c4c4ca', selected ? 2.1 : weight);
+    if (selected) line(ctx, x, 43, stringX(string, strings, END), END, '#d7fc7254', 5);
+    line(ctx, x, 48, stringX(string, strings, END), END, selected ? '#e5ff9e' : '#c4c4ca', selected ? 2.1 : weight);
     line(ctx, stringX(string, strings, END), END, stringX(string, strings, BRIDGE), BRIDGE + 5, '#898990', weight);
   }
   ctx.restore();
@@ -146,8 +146,8 @@ export function renderFretboard(board, note, strings = 6) {
   for (let string = 1; string <= strings; string++) {
     const [x, y] = horizontalPoint(stringX(string, strings, NUT), 23);
     const selected = string === activeString;
-    if (selected) circle(ctx, x, y, 8.5, '#1c1c1f');
-    ctx.fillStyle = selected ? '#fff' : '#606066';
+    if (selected) circle(ctx, x, y, 9, '#d7fc72');
+    ctx.fillStyle = selected ? '#182321' : '#536358';
     ctx.fillText(string, x, y);
   }
 
@@ -156,8 +156,8 @@ export function renderFretboard(board, note, strings = 6) {
     const length = row === 0 ? NUT - 13 : (fretY(row) + fretY(row - 1)) / 2;
     const [x, y] = horizontalPoint(CENTER + halfWidth(length) + 20, length);
     const selected = hasPosition && label === fret;
-    if (selected) circle(ctx, x, y, 10, '#1c1c1f');
-    ctx.fillStyle = selected ? '#fff' : '#606066';
+    if (selected) circle(ctx, x, y, 10.5, '#d7fc72');
+    ctx.fillStyle = selected ? '#182321' : '#536358';
     ctx.fillText(label, x, y);
   }
 

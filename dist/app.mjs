@@ -25,6 +25,7 @@ let input = null;
 let opening = false;
 let audioContext = null;
 let demo = null;
+let previewNote = null;
 let currentImport = null;
 let importing = false;
 let noise = .0015;
@@ -34,10 +35,10 @@ const musicIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V6l
 const playPath = 'M8 5l11 7-11 7z';
 const stopPath = 'M6 6h12v12H6z';
 const restartPath = 'M3 10a9 9 0 1 1 1.3 7M3 4v6h6';
-const idleHint = 'Pon tu ampli en limpio y cerca del Mac.';
 const target = document.querySelector('.target');
 const progress = document.querySelector('.progress-bar');
 const fretboard = $('fretboard');
+const micLevel = $('mic-level');
 
 function active() {
   return phase === 'counting' || phase === 'playing';
@@ -55,6 +56,8 @@ function updateActions() {
   $('import').disabled = locked || importing;
   $('mic-button').disabled = locked;
   $('listen').disabled = locked;
+  $('hear-note').disabled = locked || Boolean(demo) || phase === 'complete';
+  micLevel.hidden = !input;
   $('start').disabled = opening;
   for (const button of $('songs').querySelectorAll('button')) button.disabled = locked;
   const micLabel = opening ? 'Activando…' : input ? 'Micrófono activo' : 'Activar micrófono';
@@ -74,7 +77,7 @@ function updateProgress(index) {
   progress.setAttribute('aria-valuemax', total);
   progress.setAttribute('aria-valuenow', index);
   $('tempo-text').textContent = $('mode').value === 'free'
-    ? 'A tu ritmo'
+    ? ''
     : Math.round(song.bpm * Number($('speed').value)) + ' BPM';
 }
 
@@ -100,17 +103,18 @@ function showNote(index, label) {
     }
   }
   const previous = song.notes[index - 1];
-  const repeat = label === 'TOCA ESTA NOTA' && note.string === previous?.string && note.fret === previous?.fret;
-  $('position-hint').textContent = !hasPosition ? 'Busca esta nota en tu guitarra.'
-    : repeat ? 'Toca la misma nota otra vez.'
-    : note.fret === 0 ? 'Al aire. Toca sin pisar.' : 'Pisa justo antes del metal.';
+  const repeat = label === 'TOCA' && note.string === previous?.string && note.fret === previous?.fret;
+  $('position-hint').textContent = !hasPosition ? 'Sin digitación'
+    : repeat ? 'Repite la nota'
+    : note.fret === 0 ? 'Al aire' : '';
   renderFretboard(fretboard, note, Math.max(2, song.tuning?.length || 6, note.string || 0));
 }
 
-function reset(hint = idleHint) {
+function reset(hint = '') {
   phase = 'idle';
   $('practice').dataset.phase = phase;
   target.dataset.cue = 'false';
+  delete target.dataset.result;
   attempt = null;
   showNote(0, 'PRIMERA NOTA');
   updateProgress(0);
@@ -121,10 +125,12 @@ function reset(hint = idleHint) {
 function selectSong(next) {
   if (phase === 'failed' && song.id === next.id) return;
   stopDemo();
+  stopPreviewNote();
   song = next;
   $('song-title').textContent = song.title;
   const tuning = song.tuning?.length ? 'Afinación ' + [...song.tuning].reverse().map(pitchText).join(' ') : '';
-  $('song-meta').textContent = [song.artist || 'Tablatura importada', tuning].filter(Boolean).join(' · ');
+  $('song-meta').textContent = tuning;
+  $('song-meta').hidden = !tuning;
   for (const button of $('songs').querySelectorAll('button')) {
     const selected = button.dataset.song === song.id;
     button.dataset.active = selected;
@@ -144,7 +150,7 @@ function renderLibrary() {
     button.setAttribute('aria-pressed', String(entry.id === song.id));
     button.innerHTML = '<span class="song-icon">' + musicIcon + '</span><span class="song-copy"><span class="song-name"></span><span class="song-meta-small"></span></span><span class="song-status" aria-hidden="true"></span>';
     button.querySelector('.song-name').textContent = entry.title;
-    button.querySelector('.song-meta-small').textContent = entry.artist || 'Tablatura importada';
+    button.querySelector('.song-meta-small').textContent = entry.artist || '';
     button.querySelector('.song-status').hidden = entry.id !== song.id;
     button.addEventListener('click', () => selectSong(entry));
     $('songs').append(button);
@@ -162,6 +168,7 @@ function disconnectMic() {
   if (!input) return;
   const old = input;
   input = null;
+  delete micLevel.dataset.level;
   old.source.disconnect();
   old.filter.disconnect();
   old.stream.getTracks().forEach((track) => track.stop());
@@ -205,22 +212,23 @@ async function connectMic() {
         phase = 'failed';
         $('practice').dataset.phase = phase;
         target.dataset.cue = 'false';
-        feedback('Micrófono desconectado', 'Vuelve a conectarlo y pulsa Reiniciar.');
+        feedback('Micrófono desconectado', 'Actívalo y pulsa Reiniciar.');
         updateActions();
-      } else if (phase !== 'failed') feedback('Micrófono desconectado', 'Puedes volver a activarlo arriba.');
+      } else if (phase !== 'failed') feedback('Micrófono desconectado', 'Vuelve a activarlo.');
     });
     noise = .0015;
     attacks.reset();
+    scheduleFrame();
     return true;
   } catch (error) {
     stream?.getTracks().forEach((track) => track.stop());
     const deniedHint = window.top === window
-      ? 'Permite el acceso al micrófono en tu navegador y vuelve a intentarlo.'
-      : 'Abre Pulso en una pestaña propia y permite el acceso al micrófono.';
+      ? 'Permite el acceso en el navegador.'
+      : 'Abre Pulso en otra pestaña y permite el acceso.';
     const message = error.name === 'NotAllowedError' || error.name === 'SecurityError'
       ? deniedHint
-      : error.name === 'NotFoundError' ? 'El navegador no encontró un micrófono.' : error.message;
-    feedback('No pudimos activar el micrófono', message);
+      : error.name === 'NotFoundError' ? 'El navegador no detecta un micrófono.' : error.message;
+    feedback('Micrófono no disponible', message);
     return false;
   } finally {
     opening = false;
@@ -238,6 +246,9 @@ function readAudio(now, calibrating) {
   const volume = Math.sqrt(energy / 768);
   if (calibrating) noise = Math.min(.025, noise * .88 + volume * .12);
   const threshold = Math.max(.0023, noise * 2.1);
+  const level = Math.min(4, Math.max(0, 1 + Math.floor(Math.log2(volume / threshold))));
+  if (micLevel.dataset.level !== String(level)) micLevel.dataset.level = level;
+  if (!active()) return null;
   const midi = volume >= threshold && phase === 'playing'
     ? detector.analyse(buffer, audioContext.sampleRate)
     : null;
@@ -252,15 +263,15 @@ function fail() {
   phase = 'failed';
   $('practice').dataset.phase = phase;
   target.dataset.cue = 'false';
-  const { reason, heard, expected } = attempt.failure;
+  const { reason, heard } = attempt.failure;
   showNote(attempt.index, 'NOTA ESPERADA');
   if (reason === 'pitch') {
-    feedback('Nota incorrecta', 'Esperaba ' + pitchText(expected) + ' · Tocaste ' + pitchText(heard));
+    feedback('Nota incorrecta', 'Tocaste ' + pitchText(heard));
   } else if (reason === 'missing') {
-    feedback('La nota no llegó a tiempo', 'Esperaba ' + pitchText(expected) + ' · Pulsa Reiniciar');
+    feedback('Tiempo agotado', '');
   } else {
     feedback(reason === 'early' ? 'Te adelantaste' : 'Llegaste tarde',
-      'Esperaba ' + pitchText(expected) + ' · Detecté ' + pitchText(heard));
+      'Tocaste ' + pitchText(heard));
   }
   updateActions();
 }
@@ -274,21 +285,21 @@ function showPlaying(now) {
     phase = 'complete';
     $('practice').dataset.phase = phase;
     target.dataset.cue = 'false';
-    $('target-label').textContent = 'COMPLETADO';
+    $('target-label').textContent = '';
     $('target-note').textContent = '✓';
     $('fingering').replaceChildren();
-    $('position-hint').textContent = 'Todas las notas acertadas';
+    $('position-hint').textContent = '';
     renderFretboard(fretboard, null, Math.max(2, song.tuning?.length || 6));
-    feedback('¡Canción completada!', 'Pulsa Reiniciar para repetirla.');
+    feedback('¡Canción completada!', '');
     updateProgress(song.notes.length);
     updateActions();
     return;
   }
   if (attempt.index !== lastIndex) {
     lastIndex = attempt.index;
-    showNote(lastIndex, 'TOCA ESTA NOTA');
+    showNote(lastIndex, 'TOCA');
     updateProgress(lastIndex);
-    feedback('', attempt.timed ? 'Toca cuando brille el pulso.' : 'Toca la nota para avanzar.');
+    feedback('', attempt.timed ? 'Toca cuando brille el punto.' : '');
   }
   const windowOpen = !attempt.timed || now >= attempt.due - 55 && now <= attempt.due + Math.min(135, attempt.tolerance);
   target.dataset.cue = String(windowOpen);
@@ -301,18 +312,27 @@ function frame(now) {
     $('practice').dataset.phase = phase;
     lastIndex = -1;
   }
-  const heard = active() ? readAudio(now, phase === 'counting' && now < calmUntil) : null;
+  const heard = readAudio(now, phase === 'counting' && now < calmUntil);
   if (phase === 'counting') {
     const nextCount = Math.max(1, Math.ceil((startAt - now) / beatLength));
     if (nextCount !== countdown) {
       countdown = nextCount;
       $('target-label').textContent = 'PREPÁRATE';
       $('target-note').textContent = countdown;
-      $('position-hint').textContent = 'La primera nota es ' + pitchText(song.notes[0].midi);
+      $('position-hint').textContent = '';
     }
   }
   if (phase === 'playing') {
-    if (heard) attempt.hear(heard.midi, heard.at);
+    if (heard) {
+      const previousIndex = attempt.index;
+      const result = attempt.hear(heard.midi, heard.at);
+      if (result === 'retry') {
+        target.dataset.result = 'retry';
+        feedback('Repite la nota', 'Tocaste ' + pitchText(heard.midi));
+      } else if (attempt.index !== previousIndex) {
+        delete target.dataset.result;
+      }
+    }
     attempt.tick(now);
     showPlaying(now);
   }
@@ -322,18 +342,19 @@ function frame(now) {
     while (song.notes[index + 1]?.time <= elapsed) index++;
     if (index !== demo.visualIndex) {
       demo.visualIndex = index;
-      showNote(index, 'ESCUCHA LA NOTA');
+      showNote(index, 'ESCUCHA');
     }
   }
-  if (active() || demo?.visual) scheduleFrame();
+  if (input || active() || demo?.visual) scheduleFrame();
 }
 
 async function begin() {
   if (active()) {
-    reset('Intento detenido. Puedes volver a empezar.');
+    reset('Intento detenido');
     return;
   }
   stopDemo();
+  stopPreviewNote();
   if (!await connectMic()) return;
   const speed = Number($('speed').value);
   const timed = $('mode').value === 'timed';
@@ -345,11 +366,12 @@ async function begin() {
   attacks.reset();
   countdown = 0;
   phase = 'counting';
+  delete target.dataset.result;
   $('practice').dataset.phase = phase;
   target.dataset.cue = 'false';
   showNote(0, 'PRIMERA NOTA');
   updateProgress(0);
-  feedback('', 'Deja el ambiente en silencio durante la cuenta.');
+  feedback('', 'Guarda silencio durante la cuenta.');
   updateActions();
   scheduleFrame();
 }
@@ -366,6 +388,47 @@ function stopDemo() {
   updateActions();
 }
 
+function playTone(audio, midi, at, duration) {
+  const oscillator = audio.createOscillator();
+  const gain = audio.createGain();
+  oscillator.type = 'triangle';
+  oscillator.frequency.value = 440 * 2 ** ((midi - 69) / 12);
+  gain.gain.setValueAtTime(.001, at);
+  gain.gain.exponentialRampToValueAtTime(.11, at + .012);
+  gain.gain.exponentialRampToValueAtTime(.001, at + duration);
+  oscillator.connect(gain).connect(audio.destination);
+  oscillator.start(at);
+  oscillator.stop(at + duration + .01);
+  oscillator.addEventListener('ended', () => {
+    oscillator.disconnect();
+    gain.disconnect();
+  }, { once: true });
+  return oscillator;
+}
+
+function stopPreviewNote() {
+  if (!previewNote) return;
+  previewNote.stop();
+  previewNote = null;
+}
+
+async function hearNote() {
+  try {
+    const audio = context();
+    await audio.resume();
+    if ($('hear-note').disabled) return;
+    stopPreviewNote();
+    const note = song.notes[attempt?.index ?? 0];
+    const tone = playTone(audio, note.midi, audio.currentTime, .55);
+    previewNote = tone;
+    tone.addEventListener('ended', () => {
+      if (previewNote === tone) previewNote = null;
+    }, { once: true });
+  } catch {
+    feedback('Audio no disponible', '');
+  }
+}
+
 async function listen() {
   if (demo) {
     stopDemo();
@@ -375,6 +438,7 @@ async function listen() {
     const audio = context();
     await audio.resume();
     if (active() || opening || demo) return;
+    stopPreviewNote();
     const start = audio.currentTime + .07;
     const speed = Number($('speed').value);
     const notes = song.notes;
@@ -386,22 +450,9 @@ async function listen() {
         const note = notes[index++];
         const at = Math.max(audio.currentTime, start + note.time / (speed * 1000));
         const duration = Math.max(.07, Math.min(.6, note.duration / (speed * 1000)));
-        const oscillator = audio.createOscillator();
-        const gain = audio.createGain();
-        oscillator.type = 'triangle';
-        oscillator.frequency.value = 440 * 2 ** ((note.midi - 69) / 12);
-        gain.gain.setValueAtTime(.001, at);
-        gain.gain.exponentialRampToValueAtTime(.11, at + .012);
-        gain.gain.exponentialRampToValueAtTime(.001, at + duration);
-        oscillator.connect(gain).connect(audio.destination);
-        oscillator.start(at);
-        oscillator.stop(at + duration + .01);
+        const oscillator = playTone(audio, note.midi, at, duration);
         playback.playing.add(oscillator);
-        oscillator.addEventListener('ended', () => {
-          playback.playing.delete(oscillator);
-          oscillator.disconnect();
-          gain.disconnect();
-        });
+        oscillator.addEventListener('ended', () => playback.playing.delete(oscillator), { once: true });
       }
     }
     queue();
@@ -428,14 +479,14 @@ function addTrack(track) {
   renderLibrary();
   selectSong(entry);
   $('import-message').textContent = saved
-    ? 'En los acordes se practica la nota más grave.'
-    : 'Disponible durante esta sesión. El almacenamiento está lleno o desactivado.';
+    ? 'Se usa la nota más grave de cada acorde.'
+    : 'Tablatura disponible solo en esta sesión.';
 }
 
 async function importTab(file) {
   if (!file || active()) return;
   if (file.size > 10 * 1024 * 1024) {
-    $('import-message').textContent = 'Elige un archivo de hasta 10 MB.';
+    $('import-message').textContent = 'Tamaño máximo: 10 MB.';
     return;
   }
   importing = true;
@@ -445,11 +496,11 @@ async function importTab(file) {
     const { readTab } = await import('./import.mjs');
     const next = readTab(new Uint8Array(await file.arrayBuffer()), file.name);
     if (!next.tracks.length) {
-      $('import-message').textContent = 'El archivo no tiene pistas con notas compatibles.';
+      $('import-message').textContent = 'El archivo no tiene pistas compatibles.';
       return;
     }
     if (active() || opening) {
-      $('import-message').textContent = 'Detén el intento e importa el archivo de nuevo.';
+      $('import-message').textContent = 'Detén la práctica y vuelve a importar.';
       return;
     }
     currentImport = next;
@@ -466,7 +517,7 @@ async function importTab(file) {
     $('track-dialog').returnValue = '';
     $('track-dialog').showModal();
   } catch {
-    $('import-message').textContent = 'No pude leer el archivo. Prueba con una tablatura Guitar Pro o MusicXML sin protección.';
+    $('import-message').textContent = 'Usa un archivo Guitar Pro o MusicXML sin protección.';
   } finally {
     importing = false;
     updateActions();
@@ -476,13 +527,14 @@ async function importTab(file) {
 $('mic-button').addEventListener('click', async () => {
   if (input) {
     disconnectMic();
-    if (phase === 'idle') feedback('', idleHint);
+    if (phase === 'idle') feedback('', '');
   } else if (await connectMic() && phase === 'idle') {
-    feedback('Micrófono activo', 'Pulsa Empezar cuando estés listo.');
+    feedback('', '');
   }
 });
 $('start').addEventListener('click', begin);
 $('listen').addEventListener('click', listen);
+$('hear-note').addEventListener('click', hearNote);
 $('speed').addEventListener('change', () => updateProgress(attempt?.index ?? 0));
 $('mode').addEventListener('change', () => updateProgress(attempt?.index ?? 0));
 $('import').addEventListener('click', () => $('file').click());
@@ -500,7 +552,7 @@ document.addEventListener('visibilitychange', () => {
     $('practice').dataset.phase = phase;
     target.dataset.cue = 'false';
     showNote(attempt.index, 'NOTA ESPERADA');
-    feedback('Intento interrumpido', 'Pulsa Reiniciar para volver a la primera nota.');
+    feedback('Intento interrumpido', 'Pulsa Reiniciar.');
     updateActions();
   }
 });

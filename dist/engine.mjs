@@ -88,7 +88,10 @@ export class Attempt {
     if (this.status !== 'playing') return this.status;
     if (this.timed && at > this.due + this.tolerance) this.fail('late', midi);
     else if (this.timed && at < this.due - this.tolerance) this.fail('early', midi);
-    else if (midi !== this.note.midi) this.fail('pitch', midi);
+    else if (midi !== this.note.midi) {
+      if (!this.timed) return 'retry';
+      this.fail('pitch', midi);
+    }
     else if (++this.index === this.notes.length) this.status = 'complete';
     return this.status;
   }
