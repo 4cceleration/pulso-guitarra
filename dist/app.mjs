@@ -1,4 +1,5 @@
 import { Attempt, Attacks, PitchDetector, pitch, pitchText, songs } from './engine.mjs';
+import { renderFretboard } from './fretboard.mjs';
 
 const $ = (id) => document.getElementById(id);
 const getStored = () => {
@@ -20,7 +21,6 @@ let countdown = 0;
 let calmUntil = 0;
 let frameId = 0;
 let lastAudioFrame = 0;
-let lastVolume = 0;
 let input = null;
 let opening = false;
 let audioContext = null;
@@ -37,16 +37,7 @@ const restartPath = 'M3 10a9 9 0 1 1 1.3 7M3 4v6h6';
 const idleHint = 'Pon tu ampli en limpio y cerca del Mac.';
 const target = document.querySelector('.target');
 const progress = document.querySelector('.progress-bar');
-
-for (const wave of document.querySelectorAll('.wave')) {
-  const heights = [4, 6, 12, 9, 24, 35, 20, 42, 59, 38, 73, 94, 48, 65, 28, 44, 16, 11, 6, 4];
-  heights.forEach((height, index) => {
-    const bar = document.createElement('i');
-    bar.style.setProperty('--size', height + 'px');
-    bar.style.setProperty('--opacity', .24 + Math.sin(index / 19 * Math.PI) * .68);
-    wave.append(bar);
-  });
-}
+const fretboard = $('fretboard');
 
 function active() {
   return phase === 'counting' || phase === 'playing';
@@ -55,12 +46,6 @@ function active() {
 function feedback(title, detail) {
   $('feedback-title').textContent = title;
   $('feedback-detail').textContent = detail;
-}
-
-function setVolume(volume) {
-  if (Math.abs(volume - lastVolume) < .035 && volume !== 0) return;
-  lastVolume = volume;
-  target.style.setProperty('--volume', input ? .62 + volume * .79 : 1);
 }
 
 function updateActions() {
@@ -100,10 +85,26 @@ function showNote(index, label) {
   small.textContent = octave;
   $('target-label').textContent = label;
   $('target-note').replaceChildren(document.createTextNode(name), small);
-  const dot = document.createElement('span');
-  dot.textContent = '·';
-  if (note.string) $('fingering').replaceChildren(note.string + '.ª cuerda ', dot, ' traste ' + note.fret);
-  else $('fingering').textContent = 'Toca la nota en tu guitarra';
+  const hasPosition = note.string > 0 && note.fret >= 0;
+  const fingering = $('fingering');
+  fingering.replaceChildren();
+  if (hasPosition) {
+    for (const [name, value] of [['Cuerda', note.string], ['Traste', note.fret]]) {
+      const position = document.createElement('span');
+      const key = document.createElement('small');
+      const number = document.createElement('strong');
+      key.textContent = name;
+      number.textContent = value;
+      position.append(key, number);
+      fingering.append(position);
+    }
+  }
+  const previous = song.notes[index - 1];
+  const repeat = label === 'TOCA ESTA NOTA' && note.string === previous?.string && note.fret === previous?.fret;
+  $('position-hint').textContent = !hasPosition ? 'Busca esta nota en tu guitarra.'
+    : repeat ? 'Toca la misma nota otra vez.'
+    : note.fret === 0 ? 'Al aire. Toca sin pisar.' : 'Pisa justo antes del metal.';
+  renderFretboard(fretboard, note, Math.max(2, song.tuning?.length || 6, note.string || 0));
 }
 
 function reset(hint = idleHint) {
@@ -139,7 +140,6 @@ function renderLibrary() {
     const button = document.createElement('button');
     button.className = 'song';
     button.dataset.song = entry.id;
-    button.dataset.tone = entry.tone;
     button.dataset.active = entry.id === song.id;
     button.setAttribute('aria-pressed', String(entry.id === song.id));
     button.innerHTML = '<span class="song-icon">' + musicIcon + '</span><span class="song-copy"><span class="song-name"></span><span class="song-meta-small"></span></span><span class="song-status" aria-hidden="true"></span>';
@@ -165,7 +165,6 @@ function disconnectMic() {
   old.source.disconnect();
   old.filter.disconnect();
   old.stream.getTracks().forEach((track) => track.stop());
-  setVolume(0);
   updateActions();
 }
 
@@ -212,7 +211,6 @@ async function connectMic() {
     });
     noise = .0015;
     attacks.reset();
-    scheduleFrame();
     return true;
   } catch (error) {
     stream?.getTracks().forEach((track) => track.stop());
@@ -238,7 +236,6 @@ function readAudio(now, calibrating) {
   let energy = 0;
   for (let i = buffer.length - 768; i < buffer.length; i++) energy += buffer[i] ** 2;
   const volume = Math.sqrt(energy / 768);
-  setVolume(Math.min(1, volume * 30));
   if (calibrating) noise = Math.min(.025, noise * .88 + volume * .12);
   const threshold = Math.max(.0023, noise * 2.1);
   const midi = volume >= threshold && phase === 'playing'
@@ -279,7 +276,9 @@ function showPlaying(now) {
     target.dataset.cue = 'false';
     $('target-label').textContent = 'COMPLETADO';
     $('target-note').textContent = '✓';
-    $('fingering').textContent = 'Todas las notas acertadas';
+    $('fingering').replaceChildren();
+    $('position-hint').textContent = 'Todas las notas acertadas';
+    renderFretboard(fretboard, null, Math.max(2, song.tuning?.length || 6));
     feedback('¡Canción completada!', 'Pulsa Reiniciar para repetirla.');
     updateProgress(song.notes.length);
     updateActions();
@@ -302,14 +301,14 @@ function frame(now) {
     $('practice').dataset.phase = phase;
     lastIndex = -1;
   }
-  const heard = readAudio(now, phase === 'counting' && now < calmUntil);
+  const heard = active() ? readAudio(now, phase === 'counting' && now < calmUntil) : null;
   if (phase === 'counting') {
     const nextCount = Math.max(1, Math.ceil((startAt - now) / beatLength));
     if (nextCount !== countdown) {
       countdown = nextCount;
       $('target-label').textContent = 'PREPÁRATE';
       $('target-note').textContent = countdown;
-      $('fingering').textContent = 'La primera nota es ' + pitchText(song.notes[0].midi);
+      $('position-hint').textContent = 'La primera nota es ' + pitchText(song.notes[0].midi);
     }
   }
   if (phase === 'playing') {
@@ -317,7 +316,16 @@ function frame(now) {
     attempt.tick(now);
     showPlaying(now);
   }
-  if (active() || input) scheduleFrame();
+  if (demo?.visual) {
+    const elapsed = (audioContext.currentTime - demo.start) * demo.speed * 1000;
+    let index = demo.visualIndex;
+    while (song.notes[index + 1]?.time <= elapsed) index++;
+    if (index !== demo.visualIndex) {
+      demo.visualIndex = index;
+      showNote(index, 'ESCUCHA LA NOTA');
+    }
+  }
+  if (active() || demo?.visual) scheduleFrame();
 }
 
 async function begin() {
@@ -339,6 +347,7 @@ async function begin() {
   phase = 'counting';
   $('practice').dataset.phase = phase;
   target.dataset.cue = 'false';
+  showNote(0, 'PRIMERA NOTA');
   updateProgress(0);
   feedback('', 'Deja el ambiente en silencio durante la cuenta.');
   updateActions();
@@ -352,6 +361,7 @@ function stopDemo() {
   for (const oscillator of demo.playing) {
     try { oscillator.stop(); } catch {}
   }
+  if (demo.visual) showNote(0, 'PRIMERA NOTA');
   demo = null;
   updateActions();
 }
@@ -368,7 +378,7 @@ async function listen() {
     const start = audio.currentTime + .07;
     const speed = Number($('speed').value);
     const notes = song.notes;
-    demo = { timer: 0, scheduler: 0, playing: new Set() };
+    demo = { timer: 0, scheduler: 0, playing: new Set(), visual: phase === 'idle', visualIndex: -1, start, speed };
     const playback = demo;
     let index = 0;
     function queue() {
@@ -398,6 +408,7 @@ async function listen() {
     demo.scheduler = setInterval(queue, 90);
     const last = notes.at(-1);
     demo.timer = setTimeout(stopDemo, Math.min(2147483647, (last.time + last.duration) / speed + 160));
+    if (demo.visual) scheduleFrame();
     updateActions();
   } catch {
     if (phase !== 'failed') feedback('Audio no disponible', 'Comprueba el volumen del navegador.');
@@ -409,7 +420,7 @@ function addTrack(track) {
   const entry = {
     id: crypto.randomUUID(), title: track.title || title,
     artist: track.artist || [artist, track.name].filter(Boolean).join(' · '),
-    bpm: track.bpm, tone: 'violet', notes: track.notes, tuning: track.tuning
+    bpm: track.bpm, notes: track.notes, tuning: track.tuning
   };
   imported.push(entry);
   let saved = true;

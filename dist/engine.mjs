@@ -17,30 +17,30 @@ export function fingering(midi) {
     ?? options.find(({ fret }) => fret >= 0 && fret <= 24);
 }
 
-function exercise(id, title, artist, bpm, tone, melody) {
+function exercise(id, title, artist, bpm, melody) {
   let position = 0;
   const notes = melody.map(([midi, beats, string, fret]) => {
     const time = position * 60000 / bpm;
     position += beats;
     return { midi, time, duration: beats * 60000 / bpm, ...(string ? { string, fret } : fingering(midi)) };
   });
-  return { id, title, artist, bpm, tone, notes };
+  return { id, title, artist, bpm, notes };
 }
 
 export const songs = [
-  exercise('feliz', 'Feliz cumpleaños', 'Tradicional', 84, 'mint', [
+  exercise('feliz', 'Feliz cumpleaños', 'Tradicional', 84, [
     [55,.5],[55,.5],[57,1],[55,1],[60,1],[59,2],
     [55,.5],[55,.5],[57,1],[55,1],[62,1],[60,2],
     [55,.5],[55,.5],[67,1],[64,1],[60,1],[59,1],[57,2],
     [65,.5],[65,.5],[64,1],[60,1],[62,1],[60,2]
   ]),
-  exercise('voltaje', 'Alto voltaje', 'Riff original · Rock', 100, 'amber', [
+  exercise('voltaje', 'Alto voltaje', 'Riff original · Rock', 100, [
     [40,.5,6,0],[40,.5,6,0],[43,1,6,3],[45,1,6,5],[43,1,6,3],
     [40,.5,6,0],[40,.5,6,0],[43,1,6,3],[46,1,6,6],[45,1,6,5],
     [40,.5,6,0],[40,.5,6,0],[43,1,6,3],[45,1,6,5],[43,1,6,3],
     [48,1,5,3],[46,1,5,1],[45,1,5,0],[40,1,6,0]
   ]),
-  exercise('medianoche', 'Medianoche', 'Riff original · Metal', 112, 'violet', [
+  exercise('medianoche', 'Medianoche', 'Riff original · Metal', 112, [
     [40,.5,6,0],[40,.5,6,0],[47,1,5,2],[40,.5,6,0],[40,.5,6,0],[48,1,5,3],
     [40,.5,6,0],[40,.5,6,0],[47,1,5,2],[45,1,5,0],[43,1,6,3],
     [40,.5,6,0],[40,.5,6,0],[47,1,5,2],[40,.5,6,0],[40,.5,6,0],[48,1,5,3],

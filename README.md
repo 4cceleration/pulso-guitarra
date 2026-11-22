@@ -1,12 +1,12 @@
 # Pulso
 
-Práctica de guitarra eléctrica, nota a nota, con el micrófono del Mac. Pulso muestra la nota, la cuerda y el traste. Un fallo detiene el intento y **Reiniciar** te lleva a la primera nota.
+Práctica de guitarra eléctrica, nota a nota, con el micrófono del Mac. El punto en el mástil indica la cuerda y el traste que debes tocar. En el traste 0, toca la cuerda al aire. Un fallo detiene el intento y **Reiniciar** te lleva a la primera nota.
 
 ## Uso
 
 1. Coloca el amplificador en sonido limpio cerca del Mac y abre Pulso en una pestaña del navegador.
 2. Elige una canción y pulsa **Empezar**. Permite que el navegador use el micrófono y guarda silencio durante la cuenta de entrada.
-3. En **Con pulso**, toca la nota cuando brille. Puedes bajar la velocidad. En **A tu ritmo**, el intento espera a que toques.
+3. En **Con pulso**, toca cuando el punto se ilumine. Puedes bajar la velocidad. En **A tu ritmo**, el intento espera a que toques. **Escuchar** te permite seguir el mástil con el ejemplo.
 
 **Importar tablatura** admite archivos Guitar Pro (`.gp`, `.gp3`, `.gp4`, `.gp5`, `.gpx`) y MusicXML (`.musicxml`, `.xml`, `.mxl`). Si el archivo tiene varias pistas, elige la de guitarra. Toca una nota por vez. Para los acordes, Pulso indica la nota más grave. Las importaciones se guardan en el navegador y el audio se analiza en el dispositivo.
 

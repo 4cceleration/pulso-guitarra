@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0b0d0c">
+  <meta name="theme-color" content="#ffffff">
   <meta name="description" content="Practica guitarra eléctrica, nota a nota, con el micrófono de tu Mac.">
   <title>Pulso · Práctica de guitarra</title>
   <link rel="icon" href="./pulso.svg" type="image/svg+xml">
@@ -23,8 +23,8 @@
   </header>
   <main class="wrap">
     <div class="heading">
-      <h1>Practica guitarra<span>.</span></h1>
-      <p>Una nota a la vez.</p>
+      <h1>Aprende guitarra<span>.</span></h1>
+      <p>Sigue el punto en el mástil.</p>
     </div>
     <div class="dashboard">
       <section class="practice panel" id="practice" data-phase="idle" aria-label="Práctica">
@@ -40,12 +40,20 @@
           </button>
         </header>
         <div class="target">
-          <div class="wave wave-left" aria-hidden="true"></div>
-          <div class="wave wave-right" aria-hidden="true"></div>
+          <div class="fretboard">
+            <div class="fretboard-art" id="fretboard">
+              <canvas width="720" height="844" role="img" aria-label="Mástil de guitarra eléctrica. Consulta la cuerda y el traste junto a la nota."></canvas>
+              <span class="fret-marker" aria-hidden="true" hidden></span>
+            </div>
+          </div>
           <div class="target-text">
             <p class="overline target-label" id="target-label">PRIMERA NOTA</p>
             <div class="note" id="target-note">Sol<small>3</small></div>
-            <p class="fingering" id="fingering">3.ª cuerda <span>·</span> traste 0</p>
+            <div class="fingering" id="fingering">
+              <span><small>Cuerda</small><strong>3</strong></span>
+              <span><small>Traste</small><strong>0</strong></span>
+            </div>
+            <p class="position-hint" id="position-hint">Al aire. Toca sin pisar.</p>
           </div>
         </div>
         <div class="feedback" role="status" aria-atomic="true">
@@ -55,7 +63,7 @@
         <div class="progress-area">
           <div class="progress-label">
             <span id="note-count">0 / 25 notas</span>
-            <span id="tempo-text">63 BPM</span>
+            <span id="tempo-text">A tu ritmo</span>
           </div>
           <div class="progress-bar" role="progressbar" aria-label="Notas acertadas" aria-valuemin="0" aria-valuemax="25" aria-valuenow="0"><div id="progress-fill"></div></div>
         </div>
@@ -66,7 +74,7 @@
           </label>
           <label class="select-label">
             <span>Modo</span>
-            <span class="select-wrap"><select id="mode"><option value="timed">Con pulso</option><option value="free">A tu ritmo</option></select></span>
+            <span class="select-wrap"><select id="mode"><option value="free">A tu ritmo</option><option value="timed">Con pulso</option></select></span>
           </label>
           <button class="button button-primary" id="start" type="button">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path id="start-icon" d="M8 5l11 7-11 7z"/></svg>
