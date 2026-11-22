@@ -1,6 +1,9 @@
-const WIDTH = 360;
-const HEIGHT = 422;
-const CENTER = WIDTH / 2;
+const WIDTH = 760;
+const HEIGHT = 270;
+const CENTER = 180;
+const LEFT = 15;
+const LENGTH_SCALE = 1.78;
+const CROSS_SCALE = .74;
 const NUT = 55;
 const END = 320;
 const BRIDGE = 394;
@@ -9,6 +12,7 @@ const ROWS = 9;
 const halfWidth = (y) => 49 + 20 * Math.min(1, Math.max(0, (y - NUT) / (END - NUT)));
 const stringX = (string, count, y) => CENTER + (1 - 2 * (string - 1) / (count - 1)) * (halfWidth(y) - 11);
 const fretY = (row) => NUT + (END - NUT) * (1 - .96 ** row) / (1 - .96 ** ROWS);
+const horizontalPoint = (x, y) => [LEFT + y * LENGTH_SCALE, HEIGHT / 2 + (CENTER - x) * CROSS_SCALE];
 
 function outline(ctx, shape, fill, stroke, width = 1) {
   if (fill) {
@@ -120,29 +124,37 @@ export function renderFretboard(board, note, strings = 6) {
 
   ctx.setTransform(canvas.width / WIDTH, 0, 0, canvas.height / HEIGHT, 0, 0);
   ctx.clearRect(0, 0, WIDTH, HEIGHT);
+  ctx.save();
+  ctx.transform(0, -CROSS_SCALE, LENGTH_SCALE, 0, LEFT, HEIGHT / 2 + CENTER * CROSS_SCALE);
   paintBody(ctx, strings >= 6);
   paintNeck(ctx, firstFret);
   paintHardware(ctx, strings);
 
-  ctx.font = '600 13px "IBM Plex Mono", monospace';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  for (let string = strings; string >= 1; string--) {
+  for (let string = 1; string <= strings; string++) {
     const x = stringX(string, strings, NUT);
     const selected = string === activeString;
     const weight = .75 + (string - 1) / (strings - 1) * 1;
     if (selected) line(ctx, x, 43, stringX(string, strings, END), END, '#ffffff28', 5);
     line(ctx, x, 48, stringX(string, strings, END), END, selected ? '#fafafa' : '#c4c4ca', selected ? 2.1 : weight);
     line(ctx, stringX(string, strings, END), END, stringX(string, strings, BRIDGE), BRIDGE + 5, '#898990', weight);
-    if (selected) circle(ctx, x, 23, 9, '#1c1c1f');
+  }
+  ctx.restore();
+
+  ctx.font = '600 14px "IBM Plex Mono", monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (let string = 1; string <= strings; string++) {
+    const [x, y] = horizontalPoint(stringX(string, strings, NUT), 23);
+    const selected = string === activeString;
+    if (selected) circle(ctx, x, y, 8.5, '#1c1c1f');
     ctx.fillStyle = selected ? '#fff' : '#606066';
-    ctx.fillText(string, x, 23);
+    ctx.fillText(string, x, y);
   }
 
   for (let row = firstFret === 1 ? 0 : 1; row <= ROWS; row++) {
     const label = row === 0 ? 0 : firstFret + row - 1;
-    const y = row === 0 ? NUT - 13 : (fretY(row) + fretY(row - 1)) / 2;
-    const x = CENTER + halfWidth(y) + 20;
+    const length = row === 0 ? NUT - 13 : (fretY(row) + fretY(row - 1)) / 2;
+    const [x, y] = horizontalPoint(CENTER + halfWidth(length) + 20, length);
     const selected = hasPosition && label === fret;
     if (selected) circle(ctx, x, y, 10, '#1c1c1f');
     ctx.fillStyle = selected ? '#fff' : '#606066';
@@ -155,8 +167,9 @@ export function renderFretboard(board, note, strings = 6) {
   board.dataset.layout = layout;
   if (hasPosition) {
     const row = fret - firstFret + 1;
-    const y = fret === 0 ? NUT - 13 : fretY(row - 1) + .72 * (fretY(row) - fretY(row - 1));
-    marker.style.left = stringX(activeString, strings, y) / WIDTH * 100 + '%';
+    const length = fret === 0 ? NUT - 13 : fretY(row - 1) + .72 * (fretY(row) - fretY(row - 1));
+    const [x, y] = horizontalPoint(stringX(activeString, strings, length), length);
+    marker.style.left = x / WIDTH * 100 + '%';
     marker.style.top = y / HEIGHT * 100 + '%';
   }
 }
